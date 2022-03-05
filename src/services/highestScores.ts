@@ -39,7 +39,7 @@ export function sortByScoreAndDuplicateScoreIndexDesc(scoreRecords: ScoreRecordW
     .slice()
     .sort((s1, s2) => {
       if(s1.state === "invalid" || s2.state === "invalid") return 0;
-      //if s2.score - s1.score is 0/false, then sort by the original index.
+      //if s2.score - s1.score is 0/false, then the scores match and we should then sort by the original index.
       return s2.score - s1.score || s2.originalIndex - s1.originalIndex;
     });
 }
