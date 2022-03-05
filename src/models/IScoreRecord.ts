@@ -1,5 +1,3 @@
-import {IInvalidScoreRecord} from "./IInvalidScoreRecord";
-
 export interface IScoreRecord {
   state: "valid",
   score: number,
