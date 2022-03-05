@@ -35,33 +35,14 @@ const mapScoreRecordToResult = (scoreRecord: IScoreRecord) => ({score: scoreReco
  * @param scoreRecords
  */
 export function sortByScoreAndDuplicateScoreIndexDesc(scoreRecords: ScoreRecordWithOriginalIndex[]){
-  const sortedByScoreDesc = sortByScoreDesc(scoreRecords);
-  return sortByDuplicateScoreIndexDesc(sortedByScoreDesc)
+  return scoreRecords
+    .slice()
+    .sort((s1, s2) => {
+      if(s1.state === "invalid" || s2.state === "invalid") return 0;
+      //if s2.score - s1.score is 0/false, then sort by the original index.
+      return s2.score - s1.score || s2.originalIndex - s1.originalIndex;
+    });
 }
-
-/**
- * Sort by scores desc.  If no score is present (ie. invalid) then ignore.
- * @param scoreRecords
- */
-export const sortByScoreDesc = (scoreRecords: ScoreRecordWithOriginalIndex[]) => scoreRecords
-  .slice()
-  .sort((s1, s2) => {
-    if(s1.state === "invalid" || s2.state === "invalid") return 0;
-    return s1.score < s2.score ? 1 : -1;
-  });
-
-/**
- * Expected to be called after sortByScoreDesc.
- * When scores are the same, sort by the original index.  Otherwise ignore.
- * @param scoreRecords
- */
-export const sortByDuplicateScoreIndexDesc = (scoreRecords: ScoreRecordWithOriginalIndex[]) => scoreRecords
-  .slice()
-  .sort((s1, s2) => {
-    if(s1.state === "invalid" || s2.state === "invalid") return 0;
-    if(s1.score !== s2.score) return 0;
-    return s1.originalIndex < s2.originalIndex ? 1 : -1;
-  });
 
 /**
  * throw the original error if any of the states are invalid.
