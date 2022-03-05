@@ -15,7 +15,7 @@ class ScoreRecordFileReader{
    */
   async readScoreRecords(filePath: string){
     const linesFromFilePathAsStrings = await readFileLinesIntoArrayOfStrings(filePath);
-    const result =  parseScoreRecords(linesFromFilePathAsStrings);
+    const result = parseScoreRecords(linesFromFilePathAsStrings);
     ensureIdsAreUnique(result);
     return result;
   }
@@ -24,7 +24,7 @@ class ScoreRecordFileReader{
 const parseScoreRecords = (array: string[]) => array.map(parseScoreRecord);
 
 /**
- * Since we must only error after we've de-duped unique scores, we can't error here.  Therefore we return either a valid or invalid score record.
+ * Since we must only error after we've sorted, we can't error here.  Therefore we return either a valid or invalid score record.
  * @param line - e.g. 10622876: {"umbrella": 99180, "name": "24490249af01e145437f2f64d5ddb9c04463c033", "value": 12354, "payload": "........", "date_stamp": 58874, "time": 615416, "id": "3c867674494e4a7aac9247a9d9a2179c"}
  */
 export function parseScoreRecord(line: string): IScoreRecord | IInvalidScoreRecord {
@@ -42,7 +42,6 @@ export function parseScoreRecord(line: string): IScoreRecord | IInvalidScoreReco
 
 /**
  * Read all lines from a file, storing each line as a string into an array.
- * NOTE: generator function would probably be better for large files, but requirements don't ask for it.
  * @param filePath - absolute path to the file to be read.
  */
 async function readFileLinesIntoArrayOfStrings(filePath: string){
@@ -116,5 +115,6 @@ export function ensureIdsAreUnique(scoreRecords: (IScoreRecord | IInvalidScoreRe
     throw new Error(`ids are not unique across the data set`);
   }
 }
+
 //singleton
 export default new ScoreRecordFileReader();
