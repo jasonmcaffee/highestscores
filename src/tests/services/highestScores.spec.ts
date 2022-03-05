@@ -1,19 +1,11 @@
 import test from 'ava';
 import highestScores, {
-  ensureIdsAreUnique,
+  ensureNoInvalidScoreRecords,
   sortByScoreAndDuplicateScoreIndexDesc
 } from "../../services/highestScores";
 import {IScoreRecord} from "../../models/IScoreRecord";
-import {IInvalidScoreRecord} from "../../models/IInvalidScoreRecord";
 import {ScoreRecordWithOriginalIndex} from "../../models/ScoreRecordWithWinnerClassification";
-
-test('ensureIdsAreUnique throws when duplicate ids are encountered', (t) => {
-  const scoreRecords: (IScoreRecord | IInvalidScoreRecord)[] = [
-    {score: 1, state: "valid", data: {id: "a"}},
-    {score: 1, state: "valid", data: {id: "a"}},
-  ];
-  t.throws(()=> ensureIdsAreUnique(scoreRecords), null, `ids are not unique across the data set`);
-});
+import {IInvalidScoreRecord} from "../../models/IInvalidScoreRecord";
 
 test(`highestScores`, async (t) => {
   const example1FilePath = `${process.cwd()}/testDataFiles/example-1.data`;
@@ -41,4 +33,12 @@ test(`sortByScoreAndDuplicateScoreIndexDesc`, (t) => {
   t.is((two as IScoreRecord).data.id, "b");
   t.is((three as IScoreRecord).data.id, "d");
   t.is((four as IScoreRecord).data.id, "c");
+});
+
+test(`ensureNoInvalidScoreRecords`, (t) => {
+  const scoreRecords: (IScoreRecord | IInvalidScoreRecord)[] = [
+    {score: 1, state: "valid", data: {id: "c"}},
+    {state: "invalid", error: new Error('no bueno'), line:`no bueno json`},
+  ];
+  t.throws(() => ensureNoInvalidScoreRecords(scoreRecords), null,  `no bueno json`);
 });

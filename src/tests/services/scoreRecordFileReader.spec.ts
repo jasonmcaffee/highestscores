@@ -1,7 +1,8 @@
 import test from 'ava';
 
-import scoreRecordFileReader, {parseScoreRecord} from '../../services/scoreRecordFileReader';
+import scoreRecordFileReader, {ensureIdsAreUnique, parseScoreRecord} from '../../services/scoreRecordFileReader';
 import {IInvalidScoreRecord} from "../../models/IInvalidScoreRecord";
+import {IScoreRecord} from "../../models/IScoreRecord";
 
 test('parseScoreRecord handles valid entries', (t) => {
   const line = `10622876: {"umbrella": 99180, "name": "24490249af01e145437f2f64d5ddb9c04463c033", "value": 12354, "payload": "........", "date_stamp": 58874, "time": 615416, "id": "3c867674494e4a7aac9247a9d9a2179c"}`
@@ -56,3 +57,10 @@ test(`read files`, async (t) => {
   t.is((four as IInvalidScoreRecord).line, `11025835: === THIS IS NOT JSON and should error if this line is part of the result set, but is ok if it not ==`);
 });
 
+test('ensureIdsAreUnique throws when duplicate ids are encountered', (t) => {
+  const scoreRecords: (IScoreRecord | IInvalidScoreRecord)[] = [
+    {score: 1, state: "valid", data: {id: "a"}},
+    {score: 1, state: "valid", data: {id: "a"}},
+  ];
+  t.throws(()=> ensureIdsAreUnique(scoreRecords), null, `ids are not unique across the data set`);
+});

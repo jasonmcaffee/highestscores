@@ -3,26 +3,25 @@ import {IScoreRecord} from "../models/IScoreRecord";
 import {IInvalidScoreRecord} from "../models/IInvalidScoreRecord";
 import {ScoreRecordWithOriginalIndex} from "../models/ScoreRecordWithWinnerClassification";
 
+/**
+ * Responsible for retrieving validated score records from the scoreRecordFileReader, sorting, and creating the subset of records to be returned.
+ */
 class HighestScores{
   /**
-   * Read scores from the given file, ensure ids are unique, determine which records with duplicate score "wins",
-   * sort by score descending, and ensure no invalid json or data is encountered.
+   * Read scores from the given file, sort, and create subset of records to return.
+   * sort by score and duplicate score index descending, and ensure no invalid json or data is encountered only after subset has been created.
    * @param filePath - absolute file path to the file to be read.
    * @param numberOfRecords - number of records to be returned.
    */
   async getHighestScores(filePath: string, numberOfRecords: number){
     //read and parse
     const scoreRecords = await scoreRecordFileReader.readScoreRecords(filePath);
-    //ids should be unique across the data set
-    ensureIdsAreUnique(scoreRecords);
     //since we need to sort by score desc, then by index of duplicate scores desc, it's useful to maintain the original index of records.
     const scoreRecordsWithOriginalIndex = createScoreRecordsWithOriginalIndex(scoreRecords);
     //sort score desc. Based on the sample result given in the instructions, this must occur before we ensure no invalid scores.
     const sortedDesc = sortByScoreAndDuplicateScoreIndexDesc(scoreRecordsWithOriginalIndex)
       .slice(0, numberOfRecords);
-    //only now can we check if the results contain invalid json entries
-    //Note that one of the entries, for score `11025835`, has a document portion that is _not_ JSON. If this line was included in the result set,
-    //then the program should error, but if not then it should continue. For example, if run with an N of 3 it would produce: [a valid response with no errors]
+    //now can we check if the results contain invalid json entries
     const noInvalidResults = ensureNoInvalidScoreRecords(sortedDesc);
     return noInvalidResults.map(mapScoreRecordToResult);
   }
@@ -48,7 +47,7 @@ export function sortByScoreAndDuplicateScoreIndexDesc(scoreRecords: ScoreRecordW
  * throw the original error if any of the states are invalid.
  * @param scoreRecords
  */
-function ensureNoInvalidScoreRecords(scoreRecords: (IScoreRecord | IInvalidScoreRecord)[]){
+export function ensureNoInvalidScoreRecords(scoreRecords: (IScoreRecord | IInvalidScoreRecord)[]){
   const firstInvalidIndex = scoreRecords.findIndex(s => s.state === "invalid");
   if(firstInvalidIndex >= 0){
     throw (scoreRecords[firstInvalidIndex] as IInvalidScoreRecord).error;
@@ -57,23 +56,10 @@ function ensureNoInvalidScoreRecords(scoreRecords: (IScoreRecord | IInvalidScore
 }
 
 /**
- * Ids should be unique across the data set.
- * @param scoreRecords - array of score records to evaluate the ids of.
- */
-export function ensureIdsAreUnique(scoreRecords: (IScoreRecord | IInvalidScoreRecord)[]){
-  const idSet = new Set();
-  const validRecords = scoreRecords.filter(scoreRecord => scoreRecord.state === "valid");
-  validRecords.forEach(scoreRecord => idSet.add((scoreRecord as IScoreRecord).data.id));
-  if(idSet.size != validRecords.length){
-    throw new Error(`ids are not unique across the data set`);
-  }
-}
-
-/**
  * iterate over each score record and create a new record that also has the originalIndex, which is useful in sorting records with duplicate scores.
  * @param scoreRecords
  */
-export const createScoreRecordsWithOriginalIndex = (scoreRecords: (IScoreRecord | IInvalidScoreRecord)[]) =>
+const createScoreRecordsWithOriginalIndex = (scoreRecords: (IScoreRecord | IInvalidScoreRecord)[]) =>
   scoreRecords.map((s, i) => ({...s, originalIndex: i}));
 
 //singleton

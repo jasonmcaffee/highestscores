@@ -4,6 +4,9 @@ import readline from 'readline';
 import {IScoreRecord, IScoreDocument} from "../models/IScoreRecord";
 import {IInvalidScoreRecord} from "../models/IInvalidScoreRecord";
 
+/**
+ * Responsible for reading, parsing, and validating score records from the file system.
+ */
 class ScoreRecordFileReader{
   /**
    * Reads all lines from the provided filePath, attempting to parse and validate each one.
@@ -12,10 +15,9 @@ class ScoreRecordFileReader{
    */
   async readScoreRecords(filePath: string){
     const linesFromFilePathAsStrings = await readFileLinesIntoArrayOfStrings(filePath);
-    //Scores can repeat, but you should only count the `id` of the _last_ line processed as the "winning" `id`.
-    //I interpret this as: only 1 id should be considered when the same score is encountered more than once, and other ids should be completely ignored.
-    //This means we must parse everything, then filter out the number of scores.
-    return parseScoreRecords(linesFromFilePathAsStrings);
+    const result =  parseScoreRecords(linesFromFilePathAsStrings);
+    ensureIdsAreUnique(result);
+    return result;
   }
 }
 
@@ -102,5 +104,17 @@ function parseValidScoreDocument(jsonString: string): IScoreDocument{
 //Convert to a signed 32-bit integer using the shift operator.  If you shift by 0 bits, the result is the first operand coerced to a 32-bit integer.
 const is32BitInteger = (number: number) => number << 0 === number;
 
+/**
+ * Ids should be unique across the data set.
+ * @param scoreRecords - array of score records to evaluate the ids of.
+ */
+export function ensureIdsAreUnique(scoreRecords: (IScoreRecord | IInvalidScoreRecord)[]){
+  const idSet = new Set();
+  const validRecords = scoreRecords.filter(scoreRecord => scoreRecord.state === "valid");
+  validRecords.forEach(scoreRecord => idSet.add((scoreRecord as IScoreRecord).data.id));
+  if(idSet.size != validRecords.length){
+    throw new Error(`ids are not unique across the data set`);
+  }
+}
 //singleton
 export default new ScoreRecordFileReader();
