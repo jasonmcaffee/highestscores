@@ -1,7 +1,7 @@
 import scoreRecordFileReader from "./scoreRecordFileReader";
 import {IScoreRecord} from "../models/IScoreRecord";
 import {IInvalidScoreRecord} from "../models/IInvalidScoreRecord";
-import {ScoreRecordWithWinnerClassification} from "../models/ScoreRecordWithWinnerClassification";
+import {ScoreRecordWithOriginalIndex} from "../models/ScoreRecordWithWinnerClassification";
 
 class HighestScores{
   /**
@@ -15,26 +15,52 @@ class HighestScores{
     const scoreRecords = await scoreRecordFileReader.readScoreRecords(filePath);
     //ids should be unique across the data set
     ensureIdsAreUnique(scoreRecords);
-    //classify whether the records are winners, then filter out only the winners, then get subset matching number of desired records
-    const winnerScoreRecords = classifyWinnersForRecordsWithDuplicateScores(scoreRecords).filter(s => s.isWinner);
+    //since we need to sort by score desc, then by index of duplicate scores desc, it's useful to maintain the original index of records.
+    const scoreRecordsWithOriginalIndex = createScoreRecordsWithOriginalIndex(scoreRecords);
     //sort score desc. Based on the sample result given in the instructions, this must occur before we ensure no invalid scores.
-    const sortedDesc = sortByScoreDesc(winnerScoreRecords)
+    const sortedDesc = sortByScoreAndDuplicateScoreIndexDesc(scoreRecordsWithOriginalIndex)
       .slice(0, numberOfRecords);
     //only now can we check if the results contain invalid json entries
     //Note that one of the entries, for score `11025835`, has a document portion that is _not_ JSON. If this line was included in the result set,
     //then the program should error, but if not then it should continue. For example, if run with an N of 3 it would produce: [a valid response with no errors]
-    ensureNoInvalidScoreRecords(sortedDesc);
-    return sortedDesc.map(mapScoreRecordToResult);
+    const noInvalidResults = ensureNoInvalidScoreRecords(sortedDesc);
+    return noInvalidResults.map(mapScoreRecordToResult);
   }
 }
 
 const mapScoreRecordToResult = (scoreRecord: IScoreRecord) => ({score: scoreRecord.score, id: scoreRecord.data.id});
 
-export const sortByScoreDesc = (scoreRecords: (IScoreRecord | IInvalidScoreRecord)[]) => scoreRecords
+/**
+ * Sort by scores desc, then sort by original index desc so that last entry for records duplicate scores "wins" by being on top.
+ * @param scoreRecords
+ */
+export function sortByScoreAndDuplicateScoreIndexDesc(scoreRecords: ScoreRecordWithOriginalIndex[]){
+  const sortedByScoreDesc = sortByScoreDesc(scoreRecords);
+  return sortByDuplicateScoreIndexDesc(sortedByScoreDesc)
+}
+
+/**
+ * Sort by scores desc.  If no score is present (ie. invalid) then ignore.
+ * @param scoreRecords
+ */
+export const sortByScoreDesc = (scoreRecords: ScoreRecordWithOriginalIndex[]) => scoreRecords
   .slice()
   .sort((s1, s2) => {
     if(s1.state === "invalid" || s2.state === "invalid") return 0;
     return s1.score < s2.score ? 1 : -1;
+  });
+
+/**
+ * Expected to be called after sortByScoreDesc.
+ * When scores are the same, sort by the original index.  Otherwise ignore.
+ * @param scoreRecords
+ */
+export const sortByDuplicateScoreIndexDesc = (scoreRecords: ScoreRecordWithOriginalIndex[]) => scoreRecords
+  .slice()
+  .sort((s1, s2) => {
+    if(s1.state === "invalid" || s2.state === "invalid") return 0;
+    if(s1.score !== s2.score) return 0;
+    return s1.originalIndex < s2.originalIndex ? 1 : -1;
   });
 
 /**
@@ -46,6 +72,7 @@ function ensureNoInvalidScoreRecords(scoreRecords: (IScoreRecord | IInvalidScore
   if(firstInvalidIndex >= 0){
     throw (scoreRecords[firstInvalidIndex] as IInvalidScoreRecord).error;
   }
+  return scoreRecords as IScoreRecord[];//ts doesn't recognize the above logic.  rather than use "if s.state == valid" and build a new list, we can safely cast
 }
 
 /**
@@ -62,42 +89,11 @@ export function ensureIdsAreUnique(scoreRecords: (IScoreRecord | IInvalidScoreRe
 }
 
 /**
- * iterate over each score record and determine if it is a winner by checking if it is the last index with the score.
- * invalid (failed to be parsed records) are classified as winners since they do not have scores.
+ * iterate over each score record and create a new record that also has the originalIndex, which is useful in sorting records with duplicate scores.
  * @param scoreRecords
  */
-export function classifyWinnersForRecordsWithDuplicateScores(scoreRecords: (IScoreRecord | IInvalidScoreRecord)[]){
-  const results: ScoreRecordWithWinnerClassification[] = scoreRecords.map((s, i) => {
-    //if valid, and the index of last record with same score matches this index, then consider the record a winner.
-    const isWinner = s.state === "valid" ? indexOfLastRecordWithScore(s.score, scoreRecords) === i : true;
-    return {...s, isWinner};
-  });
-  return results;
-}
-
-/**
- * Find the last index of the given score so we can determine which of the duplicates is considered a winner.
- * @param score
- * @param scoreRecords
- */
-export const indexOfLastRecordWithScore = (score: number, scoreRecords: (IScoreRecord | IInvalidScoreRecord)[]) =>
-  findLastIndex(scoreRecords, (s => s.state === "valid" && s.score === score));
-
-/**
- * Find the last index in the array which matches the predicate by iterating backwards through the array.
- * @param array
- * @param predicate
- */
-export function findLastIndex<T>(array: Array<T>, predicate: (value: T) => boolean){
-  let i = array.length; //start at the end and loop backwards
-  while(i--){
-    const item = array[i];
-    if (predicate(item)){ //if predicate is true, return the index.
-      return i;
-    }
-  }
-  return -1;
-}
+export const createScoreRecordsWithOriginalIndex = (scoreRecords: (IScoreRecord | IInvalidScoreRecord)[]) =>
+  scoreRecords.map((s, i) => ({...s, originalIndex: i}));
 
 //singleton
 export default new HighestScores();

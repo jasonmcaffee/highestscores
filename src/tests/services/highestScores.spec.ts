@@ -1,45 +1,12 @@
 import test from 'ava';
 import highestScores, {
-  indexOfLastRecordWithScore,
-  classifyWinnersForRecordsWithDuplicateScores,
   ensureIdsAreUnique,
-  sortByScoreDesc
+  sortByScoreDesc,
+  sortByDuplicateScoreIndexDesc, sortByScoreAndDuplicateScoreIndexDesc
 } from "../../services/highestScores";
 import {IScoreRecord} from "../../models/IScoreRecord";
 import {IInvalidScoreRecord} from "../../models/IInvalidScoreRecord";
-
-test('indexOfLastRecordWithScore', (t) => {
-  const scoreRecords: IScoreRecord[] = [
-    {score: 1, state: "valid", data: {id: "a"}},
-    {score: 1, state: "valid", data: {id: "b"}},
-    {score: 2, state: "valid", data: {id: "a"}},
-    {score: 3, state: "valid", data: {id: "a"}},
-    {score: 2, state: "valid", data: {id: "c"}},
-  ];
-  const r1 = indexOfLastRecordWithScore(1, scoreRecords);
-  const r2 = indexOfLastRecordWithScore(2, scoreRecords);
-  t.is(r1, 1);
-  t.is(r2, 4);
-});
-
-test('classifyWinnersForRecordsWithDuplicateScores', (t) => {
-  const scoreRecords: (IScoreRecord | IInvalidScoreRecord)[] = [
-    {score: 1, state: "valid", data: {id: "a"}},
-    {score: 1, state: "valid", data: {id: "b"}},
-    {score: 2, state: "valid", data: {id: "a"}},
-    {score: 3, state: "valid", data: {id: "a"}},
-    {state: "invalid", error: new Error(), line: ``},
-    {score: 2, state: "valid", data: {id: "c"}},
-  ];
-  const classifiedWinners = classifyWinnersForRecordsWithDuplicateScores(scoreRecords);
-  const [one, two, three, four, five, six] = classifiedWinners;
-  t.is(one.isWinner, false);
-  t.is(two.isWinner, true);
-  t.is(three.isWinner, false);
-  t.is(four.isWinner, true);
-  t.is(five.isWinner, true);
-  t.is(six.isWinner, true);
-});
+import {ScoreRecordWithOriginalIndex} from "../../models/ScoreRecordWithWinnerClassification";
 
 test('ensureIdsAreUnique throws when duplicate ids are encountered', (t) => {
   const scoreRecords: (IScoreRecord | IInvalidScoreRecord)[] = [
@@ -50,12 +17,12 @@ test('ensureIdsAreUnique throws when duplicate ids are encountered', (t) => {
 });
 
 test(`sort scores desc`, (t) =>{
-  const scoreRecords: IScoreRecord[] = [
-    {score: 1, state: "valid", data: {id: "a"}},
-    {score: 2, state: "valid", data: {id: "b"}},
-    {score: 3, state: "valid", data: {id: "c"}},
-    {score: 4, state: "valid", data: {id: "d"}},
-    {score: 5, state: "valid", data: {id: "e"}},
+  const scoreRecords: ScoreRecordWithOriginalIndex[] = [
+    {score: 1, state: "valid", data: {id: "a"}, originalIndex: 0},
+    {score: 2, state: "valid", data: {id: "b"}, originalIndex: 1},
+    {score: 3, state: "valid", data: {id: "c"}, originalIndex: 2},
+    {score: 4, state: "valid", data: {id: "d"}, originalIndex: 3},
+    {score: 5, state: "valid", data: {id: "e"}, originalIndex: 4},
   ];
   const sorted = sortByScoreDesc(scoreRecords);
   t.is(sorted[0], scoreRecords[4]);
@@ -76,4 +43,34 @@ test(`highestScores`, async (t) => {
   t.is(two.score, 11446512);
   t.is(three.id, "7ec85fe3aa3c4dd599e23111e7abf5c1");
   t.is(three.score, 11269569);
+});
+
+test(`sortByDuplicateScoreIndexDesc`, (t) =>{
+  const scoreRecords: ScoreRecordWithOriginalIndex[] = [
+    {score: 3, state: "valid", data: {id: "a"}, originalIndex: 3},
+    {score: 2, state: "valid", data: {id: "b"}, originalIndex: 1},
+    {score: 1, state: "valid", data: {id: "c"}, originalIndex: 0},
+    {score: 1, state: "valid", data: {id: "d"}, originalIndex: 2},
+  ];
+  const result = sortByDuplicateScoreIndexDesc(scoreRecords);
+  const [one, two, three, four] = result;
+  t.is((one as IScoreRecord).data.id, "a");
+  t.is((two as IScoreRecord).data.id, "b");
+  t.is((three as IScoreRecord).data.id, "d");
+  t.is((four as IScoreRecord).data.id, "c");
+});
+
+test(`sortByScoreAndDuplicateScoreIndexDesc`, (t) => {
+  const scoreRecords: ScoreRecordWithOriginalIndex[] = [
+    {score: 1, state: "valid", data: {id: "c"}, originalIndex: 0},
+    {score: 2, state: "valid", data: {id: "b"}, originalIndex: 1},
+    {score: 1, state: "valid", data: {id: "d"}, originalIndex: 2},
+    {score: 3, state: "valid", data: {id: "a"}, originalIndex: 3},
+  ];
+  const result = sortByScoreAndDuplicateScoreIndexDesc(scoreRecords);
+  const [one, two, three, four] = result;
+  t.is((one as IScoreRecord).data.id, "a");
+  t.is((two as IScoreRecord).data.id, "b");
+  t.is((three as IScoreRecord).data.id, "d");
+  t.is((four as IScoreRecord).data.id, "c");
 });

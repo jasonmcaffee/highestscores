@@ -1,8 +1,8 @@
 import {IInvalidScoreRecord} from "./IInvalidScoreRecord";
 import {IScoreRecord} from "./IScoreRecord";
 
-export interface IScoreRecordWinnerClassification {
-  isWinner: boolean,
+export interface IWithOriginalIndex {
+  originalIndex: number,
 }
 
-export type ScoreRecordWithWinnerClassification = (IScoreRecord | IInvalidScoreRecord) & IScoreRecordWinnerClassification;
+export type ScoreRecordWithOriginalIndex = (IScoreRecord | IInvalidScoreRecord) & IWithOriginalIndex;
